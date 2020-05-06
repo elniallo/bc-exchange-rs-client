@@ -14,16 +14,17 @@ pub struct NewOrderSingle {
     side: String,
     orderQty: f64,
     price: f64,
+    stopPrice: f64,
     execInst: String,
     expireDate: String
 }
 
 impl NewOrderSingle {
-    pub fn new(order: OrderType) -> Result<Self,()> {
+    pub fn new(order: OrderType) -> Result<Self,String> {
         let mut rng = rand::thread_rng();
         let order_id: u64 = rng.gen();
         match order {
-            OrderType::Limit {symbol, time_in_force, side, quantity, price} => {
+            OrderType::Limit { symbol, time_in_force, side, quantity, price } => {
                 let expire_date = match time_in_force {
                     TimeInForce::GTD { expiry } => {expiry.naive_utc().date().to_string()},
                     _ => String::default()
@@ -38,11 +39,60 @@ impl NewOrderSingle {
                     side: side.to_string(),
                     orderQty: quantity,
                     price: price,
+                    stopPrice: 0.0,
                     execInst: "ALO".to_string(),
                     expireDate: expire_date
                 })
             }
-            _ => Err(())
+            OrderType::Market { symbol, side, quantity } => {
+                Ok(NewOrderSingle {
+                    action: String::from("NewOrderSingle"),
+                    channel: String::from("trading"),
+                    clOrdId: order_id.to_string(),
+                    ordType: "market".to_string(),
+                    symbol: symbol.as_pair(),
+                    timeInForce: String::default(),
+                    side: side.to_string(),
+                    orderQty: quantity,
+                    price: 0.0,
+                    stopPrice: 0.0,
+                    execInst: "ALO".to_string(),
+                    expireDate: String::default()
+                })
+            },
+            OrderType::Stop { symbol, side, stop_price, quantity } => {
+                    Ok(NewOrderSingle {
+                        action: String::from("NewOrderSingle"),
+                        channel: String::from("trading"),
+                        clOrdId: order_id.to_string(),
+                        ordType: "stop".to_string(),
+                        symbol: symbol.as_pair(),
+                        timeInForce: String::default(),
+                        side: side.to_string(),
+                        orderQty: quantity,
+                        price: 0.0,
+                        stopPrice: stop_price,
+                        execInst: "ALO".to_string(),
+                        expireDate: String::default()
+                    })
+            },
+            OrderType::StopLimit { symbol, side, price, stop_price, quantity } => {
+                Ok(NewOrderSingle {
+                    action: String::from("NewOrderSingle"),
+                    channel: String::from("trading"),
+                    clOrdId: order_id.to_string(),
+                    ordType: "stopLimit".to_string(),
+                    symbol: symbol.as_pair(),
+                    timeInForce: String::default(),
+                    side: side.to_string(),
+                    orderQty: quantity,
+                    price: price,
+                    stopPrice: stop_price,
+                    execInst: "ALO".to_string(),
+                    expireDate: String::default()
+                })
+            }
+            _ => Err(String::from("Unsupported order type"))
         }
     }
 
@@ -71,8 +121,8 @@ impl OrderCancel {
 pub enum OrderType<'a> {
     Limit { symbol: Symbol<'a>, time_in_force: TimeInForce, side: OrderSide, quantity: f64, price: f64 },
     Market { symbol:Symbol<'a>, side: OrderSide, quantity: f64},
-    Stop { symbol: Symbol<'a>, side: OrderSide, stop_price: f64},
-    StopLimit { symbol: Symbol<'a>, side: OrderSide, price: f64, stop_price: f64 }
+    Stop { symbol: Symbol<'a>, side: OrderSide, stop_price: f64, quantity: f64},
+    StopLimit { symbol: Symbol<'a>, side: OrderSide, price: f64, stop_price: f64, quantity: f64 }
 }
 
 pub enum OrderSide {
@@ -125,7 +175,7 @@ mod tests {
             quantity: 1.0,
             price: 1.0
         };
-        let newOrder = NewOrderSingle::new(order).unwrap();
-        assert_eq!(newOrder.expireDate, "2020-09-26");
+        let new_order = NewOrderSingle::new(order).unwrap();
+        assert_eq!(new_order.expireDate, "2020-09-26");
     }
 }

@@ -9,8 +9,11 @@ fn main() {
     let api_key = String::from("YOUR API KEY HERE");
     let ws_address = "wss://ws.prod.blockchain.info/mercury-gateway/v1/ws";
     let (tx, rx) = channel::<String>();
+    // Channel for sending to socket
     let (json_send, json_recv) = channel::<String>();
-    let (auth_send, auth_recv) = channel::<String>();
+
+    //Channel for recieving JSON map of authenticated responses
+    let (auth_send, auth_recv) = channel::<serde_json::Map<String, serde_json::Value>>();
     let mut client = client::Client::new(&api_key, ws_address);
     let client_handler = client.run(rx, json_send);
 
@@ -21,17 +24,17 @@ fn main() {
         Err(_) => println!("Error")
     }
 
-    // let l2 = messages::symbol::SymbolSubscription::new("l2", messages::symbol::Symbol::new("BTC", "USD"));
-    //     match tx.send(l2.to_json()) {
-    //     Ok(_) => println!("Sent L2 message"),
-    //     Err(_) => println!("Error")
-    // }
+    let l2 = messages::symbol::SymbolSubscription::new("l2", messages::symbol::Symbol::new("BTC", "USD"));
+        match tx.send(l2.to_json()) {
+        Ok(_) => println!("Sent L2 message"),
+        Err(_) => println!("Error")
+    }
 
-    // let l3 = messages::symbol::SymbolSubscription::new("l3", messages::symbol::Symbol::new("BTC", "USD"));
-    // match tx.send(l3.to_json()) {
-    //     Ok(_) => println!("Sent L3 message"),
-    //     Err(_) => println!("Error")
-    // }
+    let l3 = messages::symbol::SymbolSubscription::new("l3", messages::symbol::Symbol::new("BTC", "USD"));
+    match tx.send(l3.to_json()) {
+        Ok(_) => println!("Sent L3 message"),
+        Err(_) => println!("Error")
+    }
 
     let symbols = messages::subscribe::Subscribe::new("symbols");
     println!("Message: {:?}", symbols);
@@ -78,6 +81,21 @@ fn main() {
         Ok(_) => println!("Sent trading message"),
         Err(_) => println!("Error")
     }
+
+    //place an order -> should be rejected due to no balance
+    let order = messages::order::OrderType::Limit {
+        symbol: messages::symbol::Symbol::new("BTC", "USD"),
+        side: messages::order::OrderSide::SELL,
+        price: 12000.0,
+        quantity: 1.0,
+        time_in_force: messages::order::TimeInForce::GTC
+    };
+    let new_order_message = messages::order::NewOrderSingle::new(order).unwrap();
+    match tx.send(new_order_message.to_json()) {
+        Ok(_) => println!("Placed Order: {:?}", &new_order_message),
+        Err(_) => println!("Error")
+    }
+
     let _ = message_processing_handler.join().unwrap();
     let thread_result = client_handler.join().unwrap();
     println!("thread result: {:?}", thread_result);

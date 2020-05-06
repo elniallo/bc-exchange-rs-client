@@ -5,15 +5,17 @@ use std::sync::Arc;
 use std::sync::Mutex;
 
 pub struct JsonMessageProcessor {
-    tx: mpsc::Sender<String>,
-    rx: mpsc::Receiver<String>
+    tx: mpsc::Sender<serde_json::Map<String, serde_json::Value>>,
+    rx: mpsc::Receiver<String>,
+    authenticated: bool
 }
 
 impl JsonMessageProcessor {
-    pub fn new(tx: mpsc::Sender<String>, rx: mpsc::Receiver<String>) -> Self {
+    pub fn new(tx: mpsc::Sender<serde_json::Map<String, serde_json::Value>>, rx: mpsc::Receiver<String>) -> Self {
         Self {
             tx,
-            rx
+            rx,
+            authenticated: false
         }
     }
 
@@ -34,7 +36,14 @@ impl JsonMessageProcessor {
                     };
                     if channel.as_str() == Some("auth") && event.as_str() == Some("subscribed") {
                         println!("Successful auth response");
-                        self.tx.send(String::from("Successful auth response")).unwrap();
+                        self.authenticated = true;
+                        self.tx.send(parsed).unwrap();
+                        continue;
+                    }
+                    if (channel.as_str() == Some("trading") || channel.as_str() == Some("balances")) && self.authenticated {
+                        println!("Trade or balance update");
+                        self.tx.send(parsed).unwrap();
+                        continue;
                     }
                 },
                 Err(e) => match e {
