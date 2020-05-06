@@ -8,3 +8,8 @@ To run the e2e example - simply type.
 ```
 cargo run --example e2e
 ```
+
+# TODO
+1. Deserialisation of responses into useable structs
+2. Split socket into reader/writer and move to separate threads
+3. Possibly move to futures based implementation
