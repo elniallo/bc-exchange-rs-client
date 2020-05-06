@@ -7,7 +7,7 @@ use crate::messages::symbol::Symbol;
 pub struct NewOrderSingle {
     action: String,
     channel: String,
-    clOrdId: String,
+    clOrdID: String,
     symbol: String,
     ordType: String,
     timeInForce: String,
@@ -23,6 +23,8 @@ impl NewOrderSingle {
     pub fn new(order: OrderType) -> Result<Self,String> {
         let mut rng = rand::thread_rng();
         let order_id: u64 = rng.gen();
+        let mut cl_ord_id = order_id.to_string();
+        cl_ord_id.truncate(20);
         match order {
             OrderType::Limit { symbol, time_in_force, side, quantity, price } => {
                 let expire_date = match time_in_force {
@@ -32,7 +34,7 @@ impl NewOrderSingle {
                 Ok(NewOrderSingle {
                     action: String::from("NewOrderSingle"),
                     channel: String::from("trading"),
-                    clOrdId: order_id.to_string(),
+                    clOrdID: cl_ord_id,
                     ordType: "limit".to_string(),
                     symbol: symbol.as_pair(),
                     timeInForce: time_in_force.to_string(),
@@ -48,7 +50,7 @@ impl NewOrderSingle {
                 Ok(NewOrderSingle {
                     action: String::from("NewOrderSingle"),
                     channel: String::from("trading"),
-                    clOrdId: order_id.to_string(),
+                    clOrdID: cl_ord_id,
                     ordType: "market".to_string(),
                     symbol: symbol.as_pair(),
                     timeInForce: String::default(),
@@ -64,7 +66,7 @@ impl NewOrderSingle {
                     Ok(NewOrderSingle {
                         action: String::from("NewOrderSingle"),
                         channel: String::from("trading"),
-                        clOrdId: order_id.to_string(),
+                        clOrdID: cl_ord_id,
                         ordType: "stop".to_string(),
                         symbol: symbol.as_pair(),
                         timeInForce: String::default(),
@@ -80,7 +82,7 @@ impl NewOrderSingle {
                 Ok(NewOrderSingle {
                     action: String::from("NewOrderSingle"),
                     channel: String::from("trading"),
-                    clOrdId: order_id.to_string(),
+                    clOrdID: cl_ord_id,
                     ordType: "stopLimit".to_string(),
                     symbol: symbol.as_pair(),
                     timeInForce: String::default(),
@@ -133,8 +135,8 @@ pub enum OrderSide {
 impl ToString for OrderSide {
     fn to_string(&self) -> String {
         match self {
-            BUY => String::from("BUY"),
-            SELL => String::from("SELL")
+            BUY => String::from("buy"),
+            SELL => String::from("sell")
         }
     }
 }
@@ -176,6 +178,7 @@ mod tests {
             price: 1.0
         };
         let new_order = NewOrderSingle::new(order).unwrap();
+        println!("Order Id: {:?}", &new_order.clOrdID);
         assert_eq!(new_order.expireDate, "2020-09-26");
     }
 }
