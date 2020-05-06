@@ -1,5 +1,6 @@
 use serde::{Serialize, Deserialize};
 use rand::Rng;
+use chrono::{DateTime, TimeZone, Utc};
 use crate::messages::symbol::Symbol;
 
 #[derive(Deserialize, Serialize, Debug)]
@@ -13,7 +14,8 @@ pub struct NewOrderSingle {
     side: String,
     orderQty: f64,
     price: f64,
-    execInst: String
+    execInst: String,
+    expireDate: String
 }
 
 impl NewOrderSingle {
@@ -21,18 +23,23 @@ impl NewOrderSingle {
         let mut rng = rand::thread_rng();
         let order_id: u64 = rng.gen();
         match order {
-            OrderType::Limit {symbol, time_in_force, side, quantity, amount} => {
+            OrderType::Limit {symbol, time_in_force, side, quantity, price} => {
+                let expire_date = match time_in_force {
+                    TimeInForce::GTD { expiry } => {expiry.naive_utc().date().to_string()},
+                    _ => String::default()
+                };
                 Ok(NewOrderSingle {
                     action: String::from("NewOrderSingle"),
                     channel: String::from("trading"),
                     clOrdId: order_id.to_string(),
-                    ordType: "LIMIT".to_string(),
+                    ordType: "limit".to_string(),
                     symbol: symbol.as_pair(),
                     timeInForce: time_in_force.to_string(),
                     side: side.to_string(),
                     orderQty: quantity,
-                    price: amount,
-                    execInst: "ALO".to_string()
+                    price: price,
+                    execInst: "ALO".to_string(),
+                    expireDate: expire_date
                 })
             }
             _ => Err(())
@@ -46,7 +53,7 @@ impl NewOrderSingle {
 
 #[derive(Deserialize, Serialize, Debug)]
 pub struct OrderCancel {
-    order_id: u64,
+    orderID: u64,
     channel: String,
     action: String
 }
@@ -56,13 +63,13 @@ impl OrderCancel {
         OrderCancel {
             action: String::from("subscribe"),
             channel: String::from("auth"),
-            order_id: *order_id
+            orderID: *order_id
         }
     }
 }
 
 pub enum OrderType<'a> {
-    Limit { symbol: Symbol<'a>, time_in_force: TimeInForce, side: OrderSide, quantity: f64, amount: f64 },
+    Limit { symbol: Symbol<'a>, time_in_force: TimeInForce, side: OrderSide, quantity: f64, price: f64 },
     Market { symbol:Symbol<'a>, side: OrderSide, quantity: f64},
     Stop { symbol: Symbol<'a>, side: OrderSide, stop_price: f64},
     StopLimit { symbol: Symbol<'a>, side: OrderSide, price: f64, stop_price: f64 }
@@ -84,7 +91,7 @@ impl ToString for OrderSide {
 
 pub enum TimeInForce {
     GTC,
-    GTD { expiry: u64 },
+    GTD { expiry: DateTime<Utc> },
     FOK,
     IOC
 }
@@ -99,5 +106,26 @@ impl ToString for TimeInForce {
             IOC => out.push_str("IOC")
         };
         out
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::str::FromStr;
+    #[test]
+    fn correctly_creates_gtd_order() {
+        let date: DateTime<Utc> = DateTime::from_str("2020-09-26T18:00:00z").unwrap();
+        let order = OrderType::Limit {
+            symbol: Symbol::new("ETH", "GBP"),
+            time_in_force: TimeInForce::GTD {
+                expiry: date
+            },
+            side: OrderSide::BUY,
+            quantity: 1.0,
+            price: 1.0
+        };
+        let newOrder = NewOrderSingle::new(order).unwrap();
+        assert_eq!(newOrder.expireDate, "2020-09-26");
     }
 }
